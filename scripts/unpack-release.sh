@@ -5,7 +5,11 @@ EXPECTED="3e4c7b4c89101f13b1739c970ed452f836d586ab779c5f6f155e070d6d98e22d"
 TMP="$(mktemp /tmp/isartech-one-rc.XXXXXX.tar.gz)"
 trap 'rm -f "$TMP"' EXIT
 
-cat release/part-*.b64 | base64 -d > "$TMP"
+: > "$TMP"
+for part in release/part-*.b64; do
+  base64 --decode --ignore-garbage "$part" >> "$TMP"
+done
+
 ACTUAL="$(sha256sum "$TMP" | awk '{print $1}')"
 
 if [ "$ACTUAL" != "$EXPECTED" ]; then
