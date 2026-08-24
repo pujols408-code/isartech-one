@@ -7,59 +7,50 @@ trap 'rm -f "$TMP"' EXIT
 
 python3 - "$TMP" "$EXPECTED" <<'PY'
 import base64
-import glob
 import hashlib
-import re
 import sys
 from pathlib import Path
 
 out_path = Path(sys.argv[1])
 expected = sys.argv[2]
-parts = sorted(glob.glob("release/part-*.b64"))
-if not parts:
-    raise SystemExit("No release fragments found")
 
-allowed = re.compile(rb"[^A-Za-z0-9+/=]")
+parts = [
+    Path("release/part-00.b64"),
+    Path("release/part-01.b64"),
+    Path("release/part-02.b64"),
+    Path("release/part-03.b64"),
+    Path("release/part-04.b64"),
+    Path("release/part-05.b64"),
+    Path("release/part-06.b64"),
+    Path("release/part-07.b64"),
+    Path("release/part-08.b64"),
+    Path("release/part-09.b64"),
+    Path("release/part-10-correct.b64"),
+    Path("release/part-11.b64"),
+    Path("release/part-12.b64"),
+]
 
-def clean(path: str) -> bytes:
-    return allowed.sub(b"", Path(path).read_bytes())
+missing = [str(path) for path in parts if not path.is_file()]
+if missing:
+    raise SystemExit("Missing release fragments: " + ", ".join(missing))
 
-def normalize(data: bytes) -> bytes:
-    data = data.replace(b"=", b"")
-    return data + (b"=" * ((-len(data)) % 4))
+stream = b"".join(b"".join(path.read_bytes().split()) for path in parts)
+print(f"RC stream characters: {len(stream)}")
+if len(stream) % 4 != 0:
+    raise SystemExit(f"Invalid Base64 stream length: {len(stream)}")
 
-def digest(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-candidates = []
-
-# Strategy 1: each fragment was Base64-encoded independently.
 try:
-    decoded = b"".join(
-        base64.b64decode(normalize(clean(path)), validate=False)
-        for path in parts
-    )
-    candidates.append(("independent", decoded))
+    data = base64.b64decode(stream, validate=True)
 except Exception as exc:
-    print(f"Independent fragment decoding failed: {exc}", file=sys.stderr)
+    raise SystemExit(f"Base64 decode failed: {exc}") from exc
 
-# Strategy 2: fragments are pieces of one continuous Base64 stream.
-try:
-    stream = b"".join(clean(path) for path in parts)
-    decoded = base64.b64decode(normalize(stream), validate=False)
-    candidates.append(("continuous", decoded))
-except Exception as exc:
-    print(f"Continuous stream decoding failed: {exc}", file=sys.stderr)
+actual = hashlib.sha256(data).hexdigest()
+print(f"RC SHA-256: {actual}")
+if actual != expected:
+    raise SystemExit(f"Release integrity check failed: {actual}")
 
-for strategy, data in candidates:
-    actual = digest(data)
-    print(f"RC decode strategy {strategy}: {actual}")
-    if actual == expected:
-        out_path.write_bytes(data)
-        print(f"ISARTECH ONE RC integrity verified: {actual}")
-        break
-else:
-    raise SystemExit("Release integrity check failed for all decoding strategies")
+out_path.write_bytes(data)
+print(f"ISARTECH ONE RC integrity verified: {actual}")
 PY
 
 tar -xzf "$TMP" -C .
