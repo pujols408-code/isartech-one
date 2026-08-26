@@ -33,4 +33,21 @@ if [ "$ACTUAL_SHA" != "$EXPECTED_OVERLAY_SHA" ]; then
 fi
 
 tar -xzf "$TMP_TAR" -C .
+
+# Next.js/Node TypeScript must not type-check Supabase Edge Functions.
+# Those functions run on Deno and intentionally use Deno/npm: specifiers.
+python3 <<'PY'
+import json
+from pathlib import Path
+
+path = Path("tsconfig.json")
+data = json.loads(path.read_text())
+exclude = data.setdefault("exclude", [])
+rule = "supabase/functions/**"
+if rule not in exclude:
+    exclude.append(rule)
+path.write_text(json.dumps(data, indent=2) + "\n")
+print("Next.js TypeScript exclusion applied: supabase/functions/**")
+PY
+
 echo "ISARTECH ONE v0.8 overlay verified: $ACTUAL_SHA"
