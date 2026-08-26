@@ -1,5 +1,5 @@
 [build]
-  command = "bash scripts/unpack-release.sh && npm run build"
+  command = "bash scripts/unpack-release.sh && bash scripts/apply-v08-overlay.sh && npm run build"
   publish = ".next"
 
 [build.environment]
