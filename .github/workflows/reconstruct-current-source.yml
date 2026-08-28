@@ -1,0 +1,49 @@
+name: Reconstruct current source
+
+on:
+  push:
+    branches:
+      - chore/reconstruct-current-source
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reconstruct:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Reconstruct application source
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/unpack-release.sh
+          bash scripts/apply-v08-overlay.sh
+          bash scripts/apply-v08-crm360.sh
+          echo "Reconstructed files:"
+          find src -maxdepth 5 -type f | sort
+
+      - name: Package reconstructed source
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -czf isartech-current-source.tar.gz \
+            src \
+            public \
+            package.json \
+            package-lock.json \
+            tsconfig.json \
+            next.config.* \
+            middleware.* 2>/dev/null || \
+          tar -czf isartech-current-source.tar.gz src public package.json tsconfig.json
+
+      - name: Upload reconstructed source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: isartech-current-source
+          path: isartech-current-source.tar.gz
+          if-no-files-found: error
+          retention-days: 1
