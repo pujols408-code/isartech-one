@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EXPECTED_B64_CHARS="12624"
-EXPECTED_SHA="668e5e2abea911c3ff1dbc833b3ea5836088a642eabb9549f69ed8874885acd8"
+EXPECTED_B64_CHARS="12628"
+EXPECTED_SHA="b78b23d3bbe63a20db77412d02d26a585612b67a95f113c4dcb6bc9445e462a9"
 TMP_B64="$(mktemp /tmp/isartech-v09-project360.XXXXXX.b64)"
 TMP_TAR="$(mktemp /tmp/isartech-v09-project360.XXXXXX.tar.gz)"
 trap 'rm -f "$TMP_B64" "$TMP_TAR"' EXIT
