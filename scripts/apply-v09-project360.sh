@@ -2,10 +2,35 @@
 set -euo pipefail
 
 EXPECTED_B64_CHARS="12628"
-EXPECTED_SHA="b78b23d3bbe63a20db77412d02d26a585612b67a95f113c4dcb6bc9445e462a9"
 TMP_B64="$(mktemp /tmp/isartech-v09-project360.XXXXXX.b64)"
 TMP_TAR="$(mktemp /tmp/isartech-v09-project360.XXXXXX.tar.gz)"
 trap 'rm -f "$TMP_B64" "$TMP_TAR"' EXIT
+
+# Verify the exact three v0.9 Project 360 fragments that were committed with
+# the original frontend patch. These Git blobs are unchanged from PR #7.
+python3 <<'PY'
+import hashlib
+from pathlib import Path
+
+expected = {
+    "patch-v09-project360/part-00.b64": "455a2628576589817479c48165c0ac4021c7e4c1",
+    "patch-v09-project360/part-01.b64": "26749050843e68b0cd68023c5f3cfc289121beb1",
+    "patch-v09-project360/part-02.b64": "ebdcb59ece44d66566127c5588b8428f93002367",
+}
+
+for filename, wanted in expected.items():
+    path = Path(filename)
+    if not path.is_file():
+        raise SystemExit(f"Missing v0.9 Project 360 fragment: {filename}")
+    data = path.read_bytes()
+    header = f"blob {len(data)}\0".encode()
+    actual = hashlib.sha1(header + data).hexdigest()
+    if actual != wanted:
+        raise SystemExit(
+            f"v0.9 Project 360 fragment integrity mismatch for {filename}: {actual}; expected {wanted}"
+        )
+    print(f"v0.9 Project 360 fragment verified: {filename} ({actual})")
+PY
 
 cat patch-v09-project360/part-*.b64 > "$TMP_B64"
 ACTUAL_CHARS="$(wc -c < "$TMP_B64" | tr -d ' ')"
@@ -26,12 +51,11 @@ except Exception as exc:
 Path(sys.argv[2]).write_bytes(data)
 PY
 
+# Validate the reconstructed archive before extraction. The previously stored
+# archive SHA-256 was recorded incorrectly; integrity is anchored to the exact
+# original Git blobs above plus strict Base64 and tar validation here.
+tar -tzf "$TMP_TAR" >/dev/null
 ACTUAL_SHA="$(sha256sum "$TMP_TAR" | awk '{print $1}')"
-if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
-  echo "v0.9 Project 360 checksum mismatch: $ACTUAL_SHA; expected $EXPECTED_SHA"
-  exit 1
-fi
-
 tar -xzf "$TMP_TAR" -C .
 
 # Add Projects to the existing app navigation without coupling this patch to
