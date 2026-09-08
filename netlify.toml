@@ -1,8 +1,10 @@
 [build]
-  # CRM360 is temporarily bypassed because its original compressed overlay is
-  # not a valid tar archive. The currently published v0.8 base does not depend
-  # on it, and Project 360 is an isolated overlay that can deploy safely on top.
-  command = "bash scripts/unpack-release.sh && bash scripts/apply-v08-overlay.sh && bash scripts/apply-v09-project360.sh && npm run build"
+  # CRM360 and the old v0.9 Project 360 overlay are both permanently retired:
+  # their compressed archives were corrupted at the source and unrecoverable.
+  # Project 360 (proyectos/[id], hitos, vínculo de OT) now ships as normal
+  # tracked source files instead of a base64 overlay, so no extra unpack step
+  # is needed for it.
+  command = "bash scripts/unpack-release.sh && bash scripts/apply-v08-overlay.sh && npm run build"
   publish = ".next"
 
 [build.environment]
